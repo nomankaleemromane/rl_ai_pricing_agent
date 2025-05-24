@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# VS Code / PyCharm config
+.vscode/
+.idea/
+
+# Jupyter notebooks
+*.ipynb_checkpoints
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Flask uploads/logs
+uploads/
+*.log
+
+# Python environment
+*.egg-info/

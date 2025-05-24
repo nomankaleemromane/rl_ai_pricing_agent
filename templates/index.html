@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Pricing AI Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+</head>
+<body>
+<div class="container">
+    <header class="glassmorphism-header text-center mb-5">
+        <h1 class="gradient-text mb-3">Smart Pricing AI</h1>
+        <p class="text-secondary">Dynamic Pricing Optimization with Reinforcement Learning</p>
+    </header>
+
+    <form method="POST" enctype="multipart/form-data" class="glassmorphism-card mb-5">
+        <div class="mb-4">
+            <label class="code-label">Upload Historical Data (CSV)</label>
+            <input type="file" name="file" accept=".csv" required class="form-control code-input">
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col">
+                <label class="code-label">Training Episodes</label>
+                <input type="number" name="episodes" value="300" class="form-control code-input">
+            </div>
+            <div class="col">
+                <label class="code-label">Exploration (ε)</label>
+                <input type="number" step="0.01" name="epsilon" value="0.5" class="form-control code-input">
+            </div>
+            <div class="col">
+                <label class="code-label">Learning Rate (α)</label>
+                <input type="number" step="0.01" name="lr" value="0.1" class="form-control code-input">
+            </div>
+        </div>
+        <button class="btn terminal-button">Start Training</button>
+    </form>
+
+    {% if summary %}
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="glassmorphism-card h-100 p-3">
+                <h5 class="text-secondary mb-3">Revenue Comparison</h5>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>AI Strategy:</span>
+                    <span id="rl-revenue" class="counter-animation">$0</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Static Pricing:</span>
+                    <span id="static-revenue" class="counter-animation">$0</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="glassmorphism-card h-100 p-3">
+                <h5 class="text-secondary mb-3">Optimal Price</h5>
+                <div id="best-price" class="h3 text-cyan">$0</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="glassmorphism-card h-100 p-3">
+                <h5 class="text-secondary mb-3">Training Progress</h5>
+                <div id="episode-count" class="h3">0</div>
+                <small class="text-secondary">/ {{ summary['Total Episodes'] }} episodes</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="plot-container">
+        <div id="revenuePlot" style="height: 300px;"></div>
+    </div>
+
+    <div class="plot-container">
+        <div id="qPlot" style="height: 300px;"></div>
+    </div>
+
+    <div class="logs-container">
+        <h5 class="text-secondary mb-4">Training Logs</h5>
+        <div class="log-entry-header">
+            <div>Episode</div>
+            <div>Our Price</div>
+            <div>Competitor</div>
+            <div>Inventory</div>
+            <div>Revenue</div>
+        </div>
+        <div id="trainingLogs">
+            {% for log in log_data %}
+            <div class="log-entry" style="animation-delay: {{ loop.index * 20 }}ms">
+                <div class="log-value">#{{ log['Episode'] }}</div>
+                <div class="log-value">${{ "%.2f"|format(log['Our_Price']) }}</div>
+                <div class="log-value">${{ "%.2f"|format(log['Competitor_Price']) }}</div>
+                <div class="log-value">{{ log['Inventory'] }}</div>
+                <div class="log-value text-cyan">${{ "%.2f"|format(log['Revenue']) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        const rlRevenues = {{ rl_revenues|tojson }};
+        const staticRevenues = {{ static_revenues|tojson }};
+        const qMax = {{ q_max|tojson }};
+        const finalBestPrice = {{ summary['Best Learned Price'] }};
+        const animationSpeed = 30;
+
+        // Initialize plots
+        const revenuePlot = Plotly.newPlot('revenuePlot', [{
+            y: [],
+            mode: 'lines',
+            name: 'AI Strategy',
+            line: {color: '#2ea043'}
+        }, {
+            y: [],
+            mode: 'lines',
+            name: 'Static Pricing',
+            line: {color: '#848d97', dash: 'dot'}
+        }], {
+            paper_bgcolor: '#161b22',
+            plot_bgcolor: '#161b22',
+            font: {color: '#e6edf3'},
+            margin: {t: 30},
+            xaxis: {title: 'Training Episode'},
+            yaxis: {title: 'Revenue ($)'}
+        });
+
+        const qValuePlot = Plotly.newPlot('qPlot', [{
+            y: [],
+            mode: 'lines',
+            name: 'Q-Value',
+            line: {color: '#3fb950'}
+        }], {
+            paper_bgcolor: '#161b22',
+            plot_bgcolor: '#161b22',
+            font: {color: '#e6edf3'},
+            margin: {t: 30},
+            xaxis: {title: 'Training Episode'},
+            yaxis: {title: 'Max Q-Value'}
+        });
+
+        let currentEpisode = 0;
+        const totalEpisodes = rlRevenues.length;
+
+        function animateTraining() {
+            if (currentEpisode < totalEpisodes) {
+                Plotly.extendTraces('revenuePlot', {
+                    y: [[rlRevenues[currentEpisode]], [staticRevenues[currentEpisode]]]
+                }, [0, 1]);
+
+                Plotly.extendTraces('qPlot', {
+                    y: [[qMax[currentEpisode]]]
+                }, [0]);
+
+                document.getElementById('episode-count').textContent = currentEpisode + 1;
+                document.getElementById('rl-revenue').textContent = 
+                    `$${rlRevenues[currentEpisode].toFixed(2)}`;
+                document.getElementById('static-revenue').textContent = 
+                    `$${staticRevenues[currentEpisode].toFixed(2)}`;
+
+                currentEpisode++;
+                setTimeout(animateTraining, animationSpeed);
+            } else {
+                animateValue('best-price', finalBestPrice, 1500);
+            }
+        }
+
+        function animateValue(elementId, finalValue, duration) {
+            const element = document.getElementById(elementId);
+            const startTime = Date.now();
+            
+            const update = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                element.textContent = `$${(progress * finalValue).toFixed(2)}`;
+                if (progress < 1) requestAnimationFrame(update);
+                else element.textContent = `$${finalValue.toFixed(2)}`;
+            };
+            requestAnimationFrame(update);
+        }
+
+        setTimeout(animateTraining, 500);
+    </script>
+    {% endif %}
+</div>
+</body>
+</html>

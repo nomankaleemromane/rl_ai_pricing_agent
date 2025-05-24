@@ -1,0 +1,11 @@
+Our_Price,Competitor_Price,Day_Type,Inventory_Level,Clicks,Units_Sold
+45.0,46.0,weekday,100,150,80
+46.0,45.0,weekend,120,180,100
+47.0,48.0,weekday,200,120,110
+45.0,47.0,weekend,150,160,130
+48.0,49.0,weekday,250,100,120
+46.0,45.0,weekday,180,190,140
+44.0,46.0,weekend,120,170,90
+49.0,50.0,weekday,300,220,170
+47.0,46.0,weekend,80,140,60
+45.0,44.0,weekday,500,150,200
